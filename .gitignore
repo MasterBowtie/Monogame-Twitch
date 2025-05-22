@@ -1,0 +1,7 @@
+/bin/
+/obj/
+.vs
+Content/bin
+Content/obj/
+.env
+TODO
