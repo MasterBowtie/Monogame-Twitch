@@ -16,7 +16,7 @@ $ dotnet add package TwitchLib
 
 From here you should clone this repository and paste into your new Monogame project, you will need to replace the `Content.mgcb` and `Game1.cs` files. You will need to change the namespace in `Game1.cs` to match your project namespace as is found in `Program.cs`
 
-After this step has been done, you will need to make and fill in you `.env` file following the `.env.example` formula. To make the project be able to read your environment variables you will need to add the following lines to your `.csproj` file after the `</PropertyGroup>` section.
+After this step has been done, you will need to make and fill in your `.env` file following the `.env.example` formula. To make the project be able to read your environment variables you will need to add the following lines to your `.csproj` file after the `</PropertyGroup>` section.
 ```
   <ItemGroup>
     <Content Include=".env">
