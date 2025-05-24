@@ -155,7 +155,7 @@ namespace Monogame_Twitch
                 {
                     try
                     {
-                        using (IsolatedStorageFileStream fs = storageFile.OpenFile("TwitchGalaga.json", FileMode.Create))
+                        using (IsolatedStorageFileStream fs = storageFile.OpenFile("Monogame_Twitch.json", FileMode.Create))
                         {
                             if (fs != null)
                             {
@@ -194,9 +194,9 @@ namespace Monogame_Twitch
                 {
                     try
                     {
-                        if (storageFile.FileExists("TwitchGalaga.json"))
+                        if (storageFile.FileExists("Monogame_Twitch.json"))
                         {
-                            using (IsolatedStorageFileStream fs = storageFile.OpenFile("TwitchGalaga.json", FileMode.Open))
+                            using (IsolatedStorageFileStream fs = storageFile.OpenFile("Monogame_Twitch.json", FileMode.Open))
                             {
                                 if (fs != null)
                                 {
