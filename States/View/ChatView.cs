@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
@@ -7,19 +8,15 @@ namespace bowtie
 {
     public class ChatView : GameStateView
     {
-
-        private TwitchSocket socket;
-        private GameStateEnum nextState;
+        private GameStateEnum nextState = GameStateEnum.Chat;
         private SpriteFont mainFont;
-
-        public void setSocket(TwitchSocket socket)
-        {
-            this.socket = socket;
-        }
+        private SpriteFont titleFont;
+        private List<Message> messages = new List<Message>();
 
         public override void loadContent(ContentManager contentManager)
         {
             mainFont = contentManager.Load<SpriteFont>("Fonts/CourierPrime");
+            titleFont = contentManager.Load<SpriteFont>("Fonts/CourierPrimeLg");
         }
 
         public override GameStateEnum processInput(GameTime gameTime)
@@ -42,9 +39,13 @@ namespace bowtie
             string testString = "This is a really long message and we are testing the length";
 
             Vector2 biggest = mainFont.MeasureString(testString);
-            float x = graphics.PreferredBackBufferWidth / 2 - biggest.X / 2 - 25;
+            float x = 100;
 
-            float bottom = drawMessage(mainFont, $"Twitch Chat", graphics.PreferredBackBufferHeight * .4f, x, biggest.X + 25);
+            float bottom = drawTitle(titleFont, $"Twitch Chat", 200, x, biggest.X + 25);
+            foreach (Message msg in messages)
+            {
+                bottom = drawMessage(mainFont, msg, bottom, x, biggest.X);
+            }
 
             spriteBatch.End();
         }
@@ -59,7 +60,11 @@ namespace bowtie
 
         public override void update(GameTime gameTime)
         {
-            //Pending
+            List<Message> newMessages = socket.GetMessages();
+            foreach (Message msg in newMessages)
+            {
+                messages.Insert(0, msg);
+            }
         }
 
         private void quit(GameTime gameTime, float value)
@@ -67,10 +72,20 @@ namespace bowtie
             nextState = GameStateEnum.MainMenu;
         }
 
-        private float drawMessage(SpriteFont font, string text, float y, float x, float xSize)
+        private float drawMessage(SpriteFont font, Message msg, float y, float x, float xSize) {
+            Vector2 measured = font.MeasureString($"{msg.displayName}: {msg.message}");
+            Vector2 displayMeasure = font.MeasureString($"{msg.displayName}: ");
+
+            spriteBatch.DrawString(font, $"{msg.displayName}: ", new Vector2(x, y), msg.color);
+            spriteBatch.DrawString(font, msg.message, new Vector2(x + displayMeasure.X, y), Color.Black);
+
+            return measured.Y + y;
+        }
+
+        private float drawTitle(SpriteFont font, string text, float y, float x, float xSize)
         {
             Vector2 stringSize = font.MeasureString(text);
-            spriteBatch.DrawString(font, text, new Vector2(100, y), Color.Black);
+            spriteBatch.DrawString(font, text, new Vector2(x, y), Color.Black);
             return y + stringSize.Y;
         }
     }

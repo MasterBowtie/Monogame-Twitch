@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Runtime.Serialization;
 using System.Threading.Tasks;
 using Microsoft.Xna.Framework.Input;
+using Twitch_Galaga;
 
 namespace bowtie
 {
@@ -11,10 +12,17 @@ namespace bowtie
     {
         private TwitchSocket socket;
         private KeyboardInput keyboard;
-        public Storage(KeyboardInput keyboard, TwitchSocket socket)
+        private SaveBinding save;
+        public Storage()
+        {
+            //Nothing to do here, done later
+        }
+
+        public void attachInputs(KeyboardInput keyboard, TwitchSocket socket, SaveBinding save)
         {
             this.keyboard = keyboard;
             this.socket = socket;
+            this.save = save;
         }
 
         [DataMember()]
@@ -29,31 +37,37 @@ namespace bowtie
                 System.Console.WriteLine("No Token!");
                 return false;
             }
+            // DateTime expireDate = new DateTime(token.expires);
+
             tokenStorage = new Dictionary<string, string>();
-            tokenStorage.Add("access_token", token.access_token);
-            tokenStorage.Add("refresh_token", token.refresh_token);
+            tokenStorage.Add("accessToken", token.accessToken);
+            tokenStorage.Add("refreshToken", token.refreshToken);
             tokenStorage.Add("userId", token.userId.ToString());
             tokenStorage.Add("expires", token.expires.ToString());
+
+            save();
             return true;
         }
 
-        public void loadToken()
+        public async void loadToken()
         {
             if (tokenStorage != null)
             {
-                AccessToken token = new AccessToken()
+                AccessToken token = new AccessToken
                 {
-                    access_token = tokenStorage["access_token"],
-                    refresh_token = tokenStorage["refresh_token"],
+                    accessToken = tokenStorage["accessToken"],
+                    refreshToken = tokenStorage["refreshToken"],
                     userId = uint.Parse(tokenStorage["userId"]),
                     expires = long.Parse(tokenStorage["expires"])
                 };
-                Task.Run(async () =>
-                {
 
-                    await socket.setAccessToken(token);
-                    socket.connect();
-                });
+
+                if (await socket.setAccessToken(token))
+                {   
+                    System.Console.WriteLine("Saving new Refresh Token!");
+                    saveToken();
+                }
+                socket.connect();
             }
         }
 

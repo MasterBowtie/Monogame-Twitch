@@ -16,13 +16,13 @@ namespace TwitchAuthExample
             listener.Prefixes.Add(uri);
         }
 
-        public async Task<Models.Authorization> Listen()
+        public async Task<Authorization> Listen()
         {
             listener.Start();
             return await onRequest();
         }
 
-        private async Task<Models.Authorization> onRequest()
+        private async Task<Authorization> onRequest()
         {
             while (listener.IsListening)
             {
@@ -43,7 +43,7 @@ namespace TwitchAuthExample
                         // writer.WriteLine(req.QueryString["code"]);
                         writer.WriteLine("Authorization started! Check your application!");
                         // writer.Flush();
-                        return new Models.Authorization(req.QueryString["code"]);
+                        return new Authorization(req.QueryString["code"]);
                     }
                     else
                     {
@@ -53,6 +53,15 @@ namespace TwitchAuthExample
                 }
             }
             return null;
+        }
+    }
+    public class Authorization
+    {
+        public string Code { get; }
+        
+        public Authorization(string code)
+        {
+            Code = code;
         }
     }
 }

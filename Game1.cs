@@ -59,8 +59,15 @@ namespace Twitch_Galaga
 
             keyboard = new KeyboardInput();
             socket = new TwitchSocket();
-            // TODO: Figure out Storage / TwitchSocket
-            storage = new Storage(keyboard, socket);
+            loadState();
+            if (storage == null)
+            {
+                storage = new Storage();
+            }
+            storage.attachInputs(keyboard, socket, saveState);
+            storage.loadToken();
+
+            
 
             gameStates = new Dictionary<GameStateEnum, IGameState>
             {
@@ -78,22 +85,6 @@ namespace Twitch_Galaga
 
             currentState = gameStates[GameStateEnum.MainMenu];
 
-            lock (this)
-            {
-                if (!this.saving)
-                {
-                    this.saving = true;
-                    var result = finalizeLoadAsync();
-                    result.Wait();
-                }
-            }
-
-            loadState();
-            System.Console.WriteLine("Getting Storage");
-            storage.loadCommands();
-            System.Console.WriteLine("Loaded Commands");
-            storage.loadToken();
-            System.Console.WriteLine("Loaded Token  ");
 
             base.Initialize();
         }
@@ -144,7 +135,6 @@ namespace Twitch_Galaga
         }
 
 
-        // TODO: Fix Storage
         private void saveState()
         {
             lock (this)
@@ -165,14 +155,13 @@ namespace Twitch_Galaga
                 {
                     try
                     {
-                        using (IsolatedStorageFileStream fs = storageFile.OpenFile("TwitchTesting.json", System.IO.FileMode.Create))
+                        using (IsolatedStorageFileStream fs = storageFile.OpenFile("TwitchGalaga.json", FileMode.Create))
                         {
-                            System.Console.WriteLine("Writing Storage file");
-                                                        if (fs != null)
-                                                        {
-                                                            DataContractJsonSerializer mySerializer = new DataContractJsonSerializer(typeof(Storage));
-                                                            mySerializer.WriteObject(fs, state);
-                                                        }
+                            if (fs != null)
+                            {
+                                DataContractJsonSerializer mySerializer = new DataContractJsonSerializer(typeof(Storage));
+                                mySerializer.WriteObject(fs, state);
+                            }
                         }
                     }
                     catch (IsolatedStorageException err)
@@ -180,7 +169,6 @@ namespace Twitch_Galaga
                         System.Console.WriteLine("There was an error writing to storage\n{0}", err);
                     }
                 }
-
                 this.saving = false;
             });
         }
@@ -198,41 +186,35 @@ namespace Twitch_Galaga
             }
         }
 
-                private async Task finalizeLoadAsync()
+        private async Task finalizeLoadAsync()
+        {
+            await Task.Run(() =>
+            {
+                using (IsolatedStorageFile storageFile = IsolatedStorageFile.GetUserStoreForApplication())
                 {
-                    await Task.Run(() =>
+                    try
                     {
-                        using (IsolatedStorageFile storageFile = IsolatedStorageFile.GetMachineStoreForApplication())
+                        if (storageFile.FileExists("TwitchGalaga.json"))
                         {
-                            try
+                            using (IsolatedStorageFileStream fs = storageFile.OpenFile("TwitchGalaga.json", FileMode.Open))
                             {
-                                if (storageFile.FileExists("TwitchTesting.json"))
+                                if (fs != null)
                                 {
-                                    System.Console.WriteLine("File Exists");
-                                    using (IsolatedStorageFileStream fs = storageFile.OpenFile("TwitchTesting.json", FileMode.Open))
-                                    {
-                                        if (fs != null)
-                                        {
-                                            System.Console.WriteLine($"Reading storage");
-                                            DataContractJsonSerializer mySerializer = new DataContractJsonSerializer(typeof(Storage));
-                                            storage = (Storage)mySerializer.ReadObject(fs);
-                                        }
-                                    }
+                                    DataContractJsonSerializer mySerializer = new DataContractJsonSerializer(typeof(Storage));
+                                    storage = (Storage)mySerializer.ReadObject(fs);
                                 }
-                                else
-                                {
-                                    System.Console.WriteLine("File doesn't exist yet! Building storage and saving it now");
-                                    saveState();
-                                }
-                            }
-                            catch (IsolatedStorageException err)
-                            {
-                                System.Console.WriteLine("Something broke: {0}", err);
                             }
                         }
-                        this.loading = false;
-                    });
+                    }
+                    catch (IsolatedStorageException err)
+                    {
+                        System.Console.WriteLine("Something broke: {0}", err);
+                    }
                 }
+                this.loading = false;
+            });
+        }
 
     }
+    public delegate void SaveBinding();
 }

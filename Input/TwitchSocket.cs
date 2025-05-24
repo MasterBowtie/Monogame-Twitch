@@ -11,6 +11,8 @@ using TwitchLib.Client;
 using TwitchLib.Communication.Clients;
 using TwitchLib.Api.Auth;
 using System.Threading.Tasks;
+using Microsoft.Xna.Framework;
+using System.Text.RegularExpressions;
 
 
 // https://github.com/swiftyspiffy/Twitch-Auth-Example
@@ -25,14 +27,15 @@ namespace bowtie
         User user;
         AccessToken accessToken;
         TwitchClient client;
+        List<Message> messages = new List<Message>();
 
         public TwitchSocket()
         {
             api = new TwitchAPI();
             api.Settings.ClientId = Environment.GetEnvironmentVariable("CLIENT_ID");
             server = new WebServer(Environment.GetEnvironmentVariable("REDIRECT_URL"));
-            // scopes = ["channel:bot", "user:read:chat"];
-            scopes = ["chat:read", "chat:edit"];
+            // scopes = ["channel:bot", "user:read:chat", "chat:edit"];
+            scopes = ["chat:read"];
         }
 
         public async void connect()
@@ -79,14 +82,14 @@ namespace bowtie
 
         public async void refreshAuthorization(string username, AccessToken accessToken)
         {
-            var refresh = await api.Auth.RefreshAuthTokenAsync(accessToken.refresh_token, Environment.GetEnvironmentVariable("CLIENT_SECRET"));
+            var refresh = await api.Auth.RefreshAuthTokenAsync(accessToken.refreshToken, Environment.GetEnvironmentVariable("CLIENT_SECRET"));
             lock (this)
             {
                 api.Settings.AccessToken = refresh.AccessToken;
             }
         }
 
-        public async void getAuthorized()
+        public async Task getAuthorized()
         {
             List<string> scopeEncoded = [];
             foreach (string scope in scopes)
@@ -126,49 +129,50 @@ namespace bowtie
                 this.user = user;
             }
 
-            DateTime temp = DateTime.Now + new TimeSpan(resp.ExpiresIn);
+            DateTime temp = DateTime.Now + new TimeSpan(0, 0, resp.ExpiresIn);
 
             accessToken = new AccessToken()
             {
-                access_token = resp.AccessToken,
-                refresh_token = resp.RefreshToken,
+                accessToken = resp.AccessToken,
+                refreshToken = resp.RefreshToken,
                 expires = temp.Ticks,
                 userId = uint.Parse(user.Id)
             };
-
-            // Console.WriteLine($"Authorization success!\n\nUser: {user.DisplayName} (id: {user.Id})\nAccess token: {resp.AccessToken}\nRefresh token: {resp.RefreshToken}\nExpires in: {resp.ExpiresIn}\nScopes: {string.Join(", ", resp.Scopes)}");
-
-            // refresh token
-            // var refresh = await api.Auth.RefreshAuthTokenAsync(resp.RefreshToken, Environment.GetEnvironmentVariable("CLIENT_SECRET"));
-            // api.Settings.AccessToken = refresh.AccessToken;
-
-            // // confirm new token works
-            // temp = (await api.Helix.Users.GetUsersAsync()).Users[0];
-            // lock (this)
-            // {
-            //     user = temp;
-            // }
-
-            // print out all the data we've got
-            // Console.WriteLine($"Authorization success!\n\nUser: {user.DisplayName} (id: {user.Id})\nAccess token: {refresh.AccessToken}\nRefresh token: {refresh.RefreshToken}\nExpires in: {refresh.ExpiresIn}\nScopes: {string.Join(", ", refresh.Scopes)}");
 
             System.Console.WriteLine("Authorization success!");
             connect();
         }
 
-        public async Task setAccessToken(AccessToken token)
+        public async Task<bool> setAccessToken(AccessToken token)
         {
             this.accessToken = token;
-            System.Console.WriteLine($"Access Token: {token.access_token}");
+            bool refreshed = false;
+            System.Console.WriteLine($"Access Token: {token.accessToken}");
             DateTime expireDate = new DateTime(token.expires);
             if (expireDate < DateTime.Now)
             {
-                api.Settings.AccessToken = token.refresh_token;
                 System.Console.WriteLine("Expired Token");
+                var refresh = await api.Auth.RefreshAuthTokenAsync(token.refreshToken, Environment.GetEnvironmentVariable("CLIENT_SECRET"));
+                api.Settings.AccessToken = refresh.AccessToken;
+                var tempUser = (await api.Helix.Users.GetUsersAsync()).Users[0];
+
+
+
+                DateTime temp = DateTime.Now + new TimeSpan(0, 0, refresh.ExpiresIn);
+
+                accessToken = new AccessToken()
+                {
+                    accessToken = refresh.AccessToken,
+                    refreshToken = refresh.RefreshToken,
+                    expires = temp.Ticks,
+                    userId = uint.Parse(tempUser.Id)
+                };
+                refreshed = true;
             }
             else
             {
-                api.Settings.AccessToken = token.access_token;
+                var validate = api.Auth.ValidateAccessTokenAsync(token.accessToken);
+                api.Settings.AccessToken = token.accessToken;
             }
             User user = (await api.Helix.Users.GetUsersAsync()).Users[0];
             System.Console.WriteLine($"Connected to: {user.DisplayName}");
@@ -176,6 +180,8 @@ namespace bowtie
             {
                 this.user = user;
             }
+
+            return refreshed;
         }
 
         public AccessToken getAccessToken()
@@ -198,13 +204,48 @@ namespace bowtie
         private void onMessageReceived(object sender, OnMessageReceivedArgs e)
         {
             Console.WriteLine($"{e.ChatMessage.DisplayName}: {e.ChatMessage.Message}");
+
+
+            // Convert to individual values to get correct Color
+            string hex = e.ChatMessage.ColorHex.Substring(1); // remove the '#'
+
+            byte r = Convert.ToByte(hex.Substring(0, 2), 16);
+            byte g = Convert.ToByte(hex.Substring(2, 2), 16);
+            byte b = Convert.ToByte(hex.Substring(4, 2), 16);
+
+            // Remove any characters that will break chat
+            string safe = Regex.Replace(e.ChatMessage.Message, @"[^\u0020-\u007E]", "?");
+
+            Message newMessage = new Message
+            {
+                displayName = e.ChatMessage.DisplayName,
+                message = safe,
+                bits = e.ChatMessage.Bits,
+                color = new Color(r, g, b)
+            };
+            messages.Insert(0, newMessage);
+        }
+
+        public List<Message> GetMessages()
+        {
+            List<Message> tempMsg = this.messages;
+            this.messages = new List<Message>();
+            return tempMsg;
         }
     }
     public class AccessToken
     {
         public uint userId;
-        public string access_token;
-        public string refresh_token;
+        public string accessToken;
+        public string refreshToken;
         public long expires;
+    }
+
+    public class Message
+    {
+        public string displayName;
+        public string message;
+        public int bits;
+        public Color color;
     }
 }

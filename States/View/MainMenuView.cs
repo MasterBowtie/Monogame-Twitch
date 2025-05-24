@@ -19,7 +19,6 @@ namespace bowtie
 
         private SpriteFont mainFont;
         private Texture2D selector;
-        private bool canPlayMusic = true;
         private DateTime timer;
         private string usernameInput = "";
         private bool visible = false;
@@ -63,11 +62,6 @@ namespace bowtie
         public override void update(GameTime gameTime)
         {
             timer += gameTime.ElapsedGameTime;
-            if (connecting && socket.isConnected())
-            {
-                storage.saveToken();
-                nextState = GameStateEnum.Chat;
-            }
         }
 
         public override void render(GameTime gameTime)
@@ -77,9 +71,10 @@ namespace bowtie
             string testString = $"{timer:HH:mm:ss}";
             Vector2 biggest = mainFont.MeasureString(testString);
             float x = graphics.PreferredBackBufferWidth / 2 - biggest.X / 2 - 25;
+            string twitchString = socket.isConnected() ? "Chat" : "Connect Twitch";
 
             float bottom = drawMenuItem(mainFont, $"{timer:HH:mm:ss}", graphics.PreferredBackBufferHeight * .4f, x, biggest.X + 25, false);
-            bottom = drawMenuItem(mainFont, "Connect Twitch", bottom, x, biggest.X + 25, currentSelection == MenuState.Twitch);
+            bottom = drawMenuItem(mainFont, twitchString, bottom, x, biggest.X + 25, currentSelection == MenuState.Twitch);
             drawMenuItem(mainFont, "Exit", bottom, x, biggest.X + 25, currentSelection == MenuState.Quit);
 
             spriteBatch.End();
@@ -125,8 +120,11 @@ namespace bowtie
             {
                 case MenuState.Twitch:
                     {
-                        Thread.Sleep(1000);
-                        if (!connecting)
+                        if (socket.isConnected())
+                        {
+                            nextState = GameStateEnum.Chat;
+                        }
+                        else if (!connecting)
                         {
                             connectTwitch();
                         }
@@ -188,15 +186,16 @@ namespace bowtie
         }
 
         private void connectTwitch()
-        {
+        {           
             connecting = true;
-            if (socket.isConnected())
+            Task.Run(async () =>
             {
-                return;
-            }
-            Task.Run(() =>
-            {
-                socket.getAuthorized();
+                await socket.getAuthorized();
+                storage.saveToken();
+                lock (this)
+                {
+                    connecting = false;
+                }
             });
         }
     }
