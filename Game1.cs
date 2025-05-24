@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using bowtie;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-namespace Twitch_Galaga
+namespace Monogame_Twitch
 {
 
     public class Game1 : Game
@@ -216,5 +216,4 @@ namespace Twitch_Galaga
         }
 
     }
-    public delegate void SaveBinding();
 }

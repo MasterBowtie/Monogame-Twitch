@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Runtime.Serialization;
 using System.Threading.Tasks;
 using Microsoft.Xna.Framework.Input;
-using Twitch_Galaga;
 
 namespace bowtie
 {
@@ -63,7 +62,7 @@ namespace bowtie
 
 
                 if (await socket.setAccessToken(token))
-                {   
+                {
                     System.Console.WriteLine("Saving new Refresh Token!");
                     saveToken();
                 }
@@ -163,4 +162,5 @@ namespace bowtie
             }
         }
     }
+        public delegate void SaveBinding();
 }
